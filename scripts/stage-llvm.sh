@@ -81,5 +81,26 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
     done
 fi
 
+# Strip debug symbols to stay under PyPI's 100 MB per-file limit.
+# libLLVM.dylib alone is ~250 MB unstripped; strip brings it to ~70-90 MB.
+# -x (macOS) = keep external symbols but remove debug; identical effect to
+# --strip-debug on ELF. Windows MSVC DLLs are already release-stripped.
+echo "==> stripping debug symbols"
+_do_strip() {
+    local f="$1"
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        strip -x "$f" 2>/dev/null || true
+    else
+        strip --strip-debug --strip-unneeded "$f" 2>/dev/null || true
+    fi
+}
+for t in "${TOOLS[@]}"; do
+    f="$DEST/bin/${t}${EXE}"
+    [ -f "$f" ] && _do_strip "$f"
+done
+for f in "$DEST/lib"/libLLVM* "$DEST/lib"/libLTO* "$DEST/bin"/*.dll; do
+    [ -f "$f" ] && _do_strip "$f"
+done
+
 echo "==> done: $DEST"
-ls -l "$DEST/bin"
+du -sh "$DEST/bin" "$DEST/lib" 2>/dev/null || ls -l "$DEST/bin"

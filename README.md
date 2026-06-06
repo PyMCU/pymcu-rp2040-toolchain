@@ -78,7 +78,7 @@ python -m pymcu_rp2040_toolchain status
 Example output:
 
 ```
-pymcu-rp2040-toolchain (LLVM 19.1.7, platform darwin-arm64)
+pymcu-rp2040-toolchain (LLVM 22.1.7, platform darwin-arm64)
   [ok] opt            .../pymcu_rp2040_toolchain/bin/opt
   [ok] llc            .../pymcu_rp2040_toolchain/bin/llc
   [ok] llvm-mc        .../pymcu_rp2040_toolchain/bin/llvm-mc
@@ -121,11 +121,12 @@ The download URL defaults to the official LLVM GitHub release for
    git push origin v19.1.7
    ```
 3. The `build-wheels.yml` workflow fires automatically:
-   - **Linux x64 / macOS arm64** — download the official `.tar.xz` from the
-     LLVM GitHub release, slim it with `scripts/stage-llvm.sh` (rewrites
-     macOS dylib paths to `@rpath`), build a `py3-none-<platform>` wheel.
-   - **Windows x64** — download the NSIS `.exe` installer, install silently
-     to `C:\LLVM`, copy the five tools + DLLs with PowerShell.
+   - **Linux x64 / macOS arm64 / Windows x64** — download the official
+     `.tar.xz` from the LLVM GitHub release (asset names vary per platform;
+     see the comment at the top of `build-wheels.yml`), slim to the five
+     required tools + shared libs with `scripts/stage-llvm.sh` (strips debug
+     symbols, rewrites macOS dylib paths to `@rpath`), build a
+     `py3-none-<platform>` wheel.
    - `collect-and-release` smoke-tests the Linux wheel and generates
      `SHA256SUMS`.
    - `publish-pypi` uploads all wheels + sdist to **public PyPI** via OIDC
@@ -152,6 +153,17 @@ uv build --wheel
 Without `RP2040T_TOOLCHAIN_DIR` a pure-Python wheel (`py3-none-any`) is
 produced — useful for development and sdist; the driver resolves tools from
 the cache or system PATH at runtime.
+
+### Wheel size and PyPI limits
+
+PyPI enforces a **100 MB per-file** limit. `libLLVM.dylib` (macOS) and
+`libLLVM.so` (Linux) are ~250 MB unstripped. The `stage-llvm.sh` script runs
+`strip -x` (macOS) / `strip --strip-debug` (Linux) on every binary and shared
+library it stages, bringing the macOS wheel to ~70–90 MB. The CI workflow
+measures the staged tree with `du -sh` before building the wheel; if a future
+LLVM bump pushes the size back over the limit, file a PyPI support request at
+<https://pypi.org/help/#file-size-limit> for a project-level increase (up to
+1 GB is routinely granted for toolchain packages).
 
 ## Environment variables
 
