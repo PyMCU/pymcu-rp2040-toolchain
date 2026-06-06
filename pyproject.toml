@@ -11,12 +11,24 @@ authors = [
     { name = "Iván Montiel Cardona", email = "developer@begeistert.dev" }
 ]
 requires-python = ">=3.11"
-license = { text = "MIT" }
-keywords = ["pymcu", "rp2040", "llvm", "toolchain", "cortex-m0plus"]
+# The packaging code is MIT. The bundled LLVM binaries are
+# Apache-2.0 WITH LLVM-exception (permissive, NOT copyleft/GPL).
+# See LICENSE for the full text and a plain-language explanation.
+license = { text = "MIT AND Apache-2.0 WITH LLVM-exception" }
+license-files = ["LICENSE"]
+keywords = ["pymcu", "rp2040", "llvm", "toolchain", "cortex-m0plus", "arm"]
 classifiers = [
     "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Embedded Systems",
+    "Topic :: Software Development :: Compilers",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
 ]
 
 [project.urls]

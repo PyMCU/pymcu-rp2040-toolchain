@@ -1,6 +1,5 @@
-MIT License
-
-Copyright (c) 2026 Ivan Montiel Cardona and the PyMCU Project Authors
+MIT License (packaging code)
+Copyright (c) 2026 Iván Montiel Cardona and the PyMCU Project Authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +18,66 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+-------------------------------------------------------------------------------
+Bundled LLVM binaries — Apache License 2.0 with LLVM Exceptions
+-------------------------------------------------------------------------------
+
+The platform wheels published to PyPI bundle pre-built binaries from the LLVM
+Project (opt, llc, llvm-mc, ld.lld, llvm-objcopy). These binaries are NOT
+covered by the MIT license above; they are distributed under the Apache
+License, Version 2.0 with LLVM Exceptions, reproduced at the end of this file.
+
+Source:  https://github.com/llvm/llvm-project
+License: https://llvm.org/LICENSE.txt
+
+Why this does NOT infect the rest of PyMCU
+------------------------------------------
+LLVM is NOT GPL. The "LLVM Exception" (second paragraph below) explicitly
+exempts compiled output: firmware produced by PyMCU through these tools
+carries NO license obligation from LLVM. The Apache 2.0 license is permissive
+and has no copyleft requirement. No part of the PyMCU compiler, standard
+library, or user firmware inherits any condition from this package.
+
+For reference: pymcu-avr-toolchain bundles avr-gcc (derived from GCC), which
+IS GPL-3.0-or-later. That package must therefore be GPL-licensed. The design
+is the same — it is an isolated optional package — but the license differs
+because the upstream toolchain differs.
+
+==============================================================================
+Apache License, Version 2.0 with LLVM Exceptions
+==============================================================================
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+Copyright (c) 2003-2024 LLVM Project
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+---- LLVM Exceptions to the Apache 2.0 License ----
+
+As an exception, if, as a result of your compiling your source code, portions
+of this Software are embedded into an Object form of such source code, you
+may redistribute such embedded portions in such Object form without complying
+with the conditions of Sections 4(a), 4(b) and 4(d) of the License.
+
+In addition, if you combine or link compiled forms of this Software with
+software that is licensed under the GPLv2 ("Combined Software") and if a
+court of competent jurisdiction determines that the patent provision
+(Section 3), the indemnity provision (Section 9) or other Section of the
+License conflicts with the conditions of the GPLv2, you may retroactively
+and prospectively choose to deem waived or otherwise exclude such Section(s)
+of the License, but only in their entirety and only with respect to the
+Combined Software.
