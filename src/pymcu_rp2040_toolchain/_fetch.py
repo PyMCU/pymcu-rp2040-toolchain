@@ -23,10 +23,14 @@ Two sources are supported:
 * default            -- download the pinned official LLVM release for the
   current platform from GitHub and stage from it.
 
-The download URLs/hashes are intentionally data, not code: a publishing repo
-overrides them (or sets ``PYMCU_RP2040_LLVM_URL`` / ``PYMCU_RP2040_LLVM_SHA256``)
-to point at a slimmed re-packaged archive, exactly as ``avr-gcc-build`` does for
-``pymcu-avr-toolchain``.
+Distribution note: the supported platforms ship **pre-built wheels on PyPI**
+(`pip install pymcu-rp2040-toolchain`), so the normal install path never runs
+this module -- the binaries are already bundled and their integrity is
+guaranteed by PyPI. SHA-256 pinning of the upstream archive is therefore
+**optional**: it is only a best-effort safety net for the runtime download
+fallback used on platforms without a published wheel (or in development).
+Set ``PYMCU_RP2040_LLVM_SHA256`` to enforce it, or ``PYMCU_SKIP_HASH_CHECK=1``
+to skip it explicitly. ``PYMCU_RP2040_LLVM_URL`` overrides the archive URL.
 """
 
 from __future__ import annotations
@@ -55,22 +59,30 @@ from . import (
 # single entry matches the versioned soname variants across platforms.
 _LIB_GLOBS = ("libLLVM*", "libLTO*", "libc++*", "libc++abi*", "libunwind*")
 
-# Official LLVM GitHub release assets, keyed by platform. sha256 is left blank
-# here: the publishing pipeline pins it (or the user opts into PYMCU_SKIP_HASH_
-# CHECK / supplies PYMCU_RP2040_LLVM_SHA256). The asset names follow the
-# llvm/llvm-project release convention for LLVM_VERSION.
+# Official LLVM GitHub release assets, keyed by platform, used ONLY by the
+# runtime download fallback (the published PyPI wheels bundle the binaries and
+# do not download anything). sha256 is intentionally blank -- verification is
+# optional here (see module docstring); supply PYMCU_RP2040_LLVM_SHA256 to
+# enforce it. The asset names follow the llvm/llvm-project release convention.
 _RELEASE_BASE = f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{LLVM_VERSION}"
+# Asset names use the GitHub-actions-built "LLVM-<v>-<OS>-<arch>.tar.xz" naming
+# the project ships for 19.1.x onward. The CI workflow downloads the same
+# archives (kept in sync with build-wheels.yml).
 _RELEASES: Dict[str, Dict[str, str]] = {
     "darwin-arm64": {
-        "url": f"{_RELEASE_BASE}/clang+llvm-{LLVM_VERSION}-arm64-apple-darwin22.0.tar.xz",
+        "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-macOS-ARM64.tar.xz",
+        "sha256": "",
+    },
+    "darwin-x86_64": {
+        "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-macOS-X64.tar.xz",
         "sha256": "",
     },
     "linux-x86_64": {
-        "url": f"{_RELEASE_BASE}/clang+llvm-{LLVM_VERSION}-x86_64-linux-gnu-ubuntu-22.04.tar.xz",
+        "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-Linux-X64.tar.xz",
         "sha256": "",
     },
     "win32-x86_64": {
-        "url": f"{_RELEASE_BASE}/clang+llvm-{LLVM_VERSION}-x86_64-pc-windows-msvc.tar.xz",
+        "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-Windows-X64.tar.xz",
         "sha256": "",
     },
 }

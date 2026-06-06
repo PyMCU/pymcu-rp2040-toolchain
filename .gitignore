@@ -5,7 +5,9 @@ build/
 dist/
 .venv/
 # Vendored binaries are staged at build time, never committed.
-src/pymcu_rp2040_toolchain/_bin/*
-src/pymcu_rp2040_toolchain/_lib/*
-!src/pymcu_rp2040_toolchain/_bin/.gitkeep
-!src/pymcu_rp2040_toolchain/_lib/.gitkeep
+src/pymcu_rp2040_toolchain/bin/*
+src/pymcu_rp2040_toolchain/lib/*
+!src/pymcu_rp2040_toolchain/bin/.gitkeep
+!src/pymcu_rp2040_toolchain/lib/.gitkeep
+# Local staging dir produced by scripts/stage-llvm.sh
+/staged/

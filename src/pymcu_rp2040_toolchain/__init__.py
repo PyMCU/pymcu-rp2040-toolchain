@@ -20,8 +20,8 @@ self-contained and reproducible (no system ``brew install llvm`` step).
 
 Resolution order for :func:`get_tool`:
 
-1. Binaries bundled inside this wheel under ``_bin`` / ``_lib`` (the normal
-   case for a published platform wheel -- see ``_fetch.py`` / CI).
+1. Binaries bundled inside this wheel under ``bin`` / ``lib`` (the normal
+   case for a published platform wheel from PyPI -- see ``hatch_build.py`` / CI).
 2. The shared PyMCU tool cache at
    ``~/.pymcu/tools/<platform>/llvm-rp2040/bin`` (populated by
    ``python -m pymcu_rp2040_toolchain fetch --cache``; this is also the
@@ -80,13 +80,18 @@ def platform_key() -> str:
 
 
 def bundled_bin_dir() -> Path:
-    """Directory holding binaries bundled inside this wheel (may be empty)."""
-    return _PKG_DIR / "_bin"
+    """Directory holding binaries bundled inside this wheel (may be empty).
+
+    Named ``bin`` (with a sibling ``lib``) so the LLVM tools resolve their
+    shared libraries through their default ``@loader_path/../lib`` /
+    ``$ORIGIN/../lib`` rpath without any patching.
+    """
+    return _PKG_DIR / "bin"
 
 
 def bundled_lib_dir() -> Path:
     """Directory holding shared libraries bundled alongside the binaries."""
-    return _PKG_DIR / "_lib"
+    return _PKG_DIR / "lib"
 
 
 def cache_root() -> Path:

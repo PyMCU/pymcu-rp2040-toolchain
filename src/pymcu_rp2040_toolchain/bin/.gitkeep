@@ -1,0 +1,2 @@
+# Binaries are staged here by hatch_build.py at wheel-build time (from RP2040T_TOOLCHAIN_DIR).
+# Kept empty in source control; populated per-platform by CI before packaging.

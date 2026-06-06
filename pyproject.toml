@@ -21,18 +21,25 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/begeistert/pymcu"
+"Bug Tracker" = "https://github.com/begeistert/pymcu-rp2040-toolchain/issues"
 
-[tool.hatch.version]
-# Pin the package version to the LLVM version it ships (matches the
-# pymcu-avr-toolchain convention of tracking the bundled compiler version).
-path = "src/pymcu_rp2040_toolchain/__init__.py"
-pattern = "LLVM_VERSION = \"(?P<version>[^\"]+)\""
+# The package version tracks the bundled LLVM version (matches the
+# pymcu-avr-toolchain convention). Keep [project].version in sync with
+# LLVM_VERSION in src/pymcu_rp2040_toolchain/__init__.py.
+[project.scripts]
+pymcu-rp2040-toolchain-info = "pymcu_rp2040_toolchain.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pymcu_rp2040_toolchain"]
-# Binaries staged by `python -m pymcu_rp2040_toolchain fetch --bundle` (CI /
-# publishing) land in _bin/_lib and must be force-included with their +x bit.
+# LLVM tools + shared libs are staged into bin/ and lib/ by hatch_build.py
+# (from RP2040T_TOOLCHAIN_DIR) at wheel-build time and force-included here.
 artifacts = [
-    "src/pymcu_rp2040_toolchain/_bin/**",
-    "src/pymcu_rp2040_toolchain/_lib/**",
+    "src/pymcu_rp2040_toolchain/bin/**",
+    "src/pymcu_rp2040_toolchain/lib/**",
 ]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "hatch_build.py", "scripts/", "README.md", "LICENSE"]

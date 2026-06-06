@@ -67,7 +67,8 @@ def _cmd_fetch(args: argparse.Namespace) -> int:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="pymcu_rp2040_toolchain")
-    sub = parser.add_subparsers(dest="cmd", required=True)
+    # No subcommand defaults to `status` (the package's info entry point).
+    sub = parser.add_subparsers(dest="cmd", required=False)
 
     sub.add_parser("status", help="show which LLVM tools are vendored")
 
@@ -83,7 +84,7 @@ def main(argv=None) -> int:
                          help="symlink tools from --from-dir (dev only)")
 
     args = parser.parse_args(argv)
-    if args.cmd == "status":
+    if args.cmd in (None, "status"):
         return _cmd_status()
     if args.cmd == "fetch":
         return _cmd_fetch(args)
