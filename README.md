@@ -168,4 +168,4 @@ the cache or system PATH at runtime.
 
 | Package version | Bundled LLVM |
 |---|---|
-| 19.1.7 | LLVM 19.1.7 |
+| 22.1.7 | LLVM 22.1.7 |

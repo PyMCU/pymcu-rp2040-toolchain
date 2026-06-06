@@ -53,7 +53,7 @@ __all__ = [
 
 # LLVM version the published wheels are built against. Kept in one place so the
 # fetch script, the wheel metadata and any diagnostics agree.
-LLVM_VERSION = "19.1.7"
+LLVM_VERSION = "22.1.7"
 
 # The exact tools the RP2040 pipeline invokes (see toolchain/rp2040/llvm.py).
 TOOLS: List[str] = ["opt", "llc", "llvm-mc", "ld.lld", "llvm-objcopy"]

@@ -65,24 +65,25 @@ _LIB_GLOBS = ("libLLVM*", "libLTO*", "libc++*", "libc++abi*", "libunwind*")
 # optional here (see module docstring); supply PYMCU_RP2040_LLVM_SHA256 to
 # enforce it. The asset names follow the llvm/llvm-project release convention.
 _RELEASE_BASE = f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{LLVM_VERSION}"
-# Asset names use the GitHub-actions-built "LLVM-<v>-<OS>-<arch>.tar.xz" naming
-# the project ships for 19.1.x onward. The CI workflow downloads the same
-# archives (kept in sync with build-wheels.yml).
+# Exact asset filenames as published on the llvmorg-22.1.7 release page.
+# Windows uses the MSVC tarball (clang+llvm-*-x86_64-pc-windows-msvc.tar.xz)
+# rather than the NSIS installer; the CI workflow downloads the same archives
+# (kept in sync with build-wheels.yml).
 _RELEASES: Dict[str, Dict[str, str]] = {
     "darwin-arm64": {
         "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-macOS-ARM64.tar.xz",
-        "sha256": "",
-    },
-    "darwin-x86_64": {
-        "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-macOS-X64.tar.xz",
         "sha256": "",
     },
     "linux-x86_64": {
         "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-Linux-X64.tar.xz",
         "sha256": "",
     },
+    "linux-arm64": {
+        "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-Linux-ARM64.tar.xz",
+        "sha256": "",
+    },
     "win32-x86_64": {
-        "url": f"{_RELEASE_BASE}/LLVM-{LLVM_VERSION}-Windows-X64.tar.xz",
+        "url": f"{_RELEASE_BASE}/clang+llvm-{LLVM_VERSION}-x86_64-pc-windows-msvc.tar.xz",
         "sha256": "",
     },
 }
