@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pymcu-rp2040-toolchain"
-version = "22.1.7.post3"
+version = "22.1.7.post4"
 description = "Vendored LLVM toolchain (opt/llc/llvm-mc/ld.lld/llvm-objcopy) for the PyMCU RP2040 backend"
 readme = "README.md"
 authors = [
