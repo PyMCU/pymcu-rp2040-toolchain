@@ -38,12 +38,44 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import ssl
 import sys
 import tarfile
 import tempfile
 import urllib.request
 from pathlib import Path
 from typing import Dict, Iterable, Optional
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """
+    Return an SSL context with working CA certificates.
+
+    Python builds from python.org on macOS use a bundled OpenSSL that does not
+    read the system keychain automatically.  We supplement the default context
+    with known system CA bundle paths so HTTPS to GitHub works out of the box.
+    """
+    ctx = ssl.create_default_context()
+    _CA_CANDIDATES = [
+        os.environ.get("SSL_CERT_FILE", ""),
+        "/etc/ssl/cert.pem",                        # macOS system bundle
+        "/etc/ssl/certs/ca-certificates.crt",        # Debian/Ubuntu
+        "/etc/pki/tls/certs/ca-bundle.crt",          # RHEL/CentOS/Fedora
+        "/usr/local/etc/openssl/cert.pem",            # Homebrew OpenSSL
+    ]
+    for cafile in _CA_CANDIDATES:
+        if cafile and os.path.isfile(cafile):
+            try:
+                ctx.load_verify_locations(cafile=cafile)
+                return ctx
+            except ssl.SSLError:
+                continue
+    try:
+        import certifi  # noqa: PLC0415
+        ctx.load_verify_locations(cafile=certifi.where())
+    except (ImportError, ssl.SSLError):
+        pass
+    return ctx
 
 from . import (
     LLVM_VERSION,
@@ -200,7 +232,14 @@ def _download_and_stage(dest_bin: Path, dest_lib: Path, console=None) -> None:
         tmp = Path(td)
         archive = tmp / "llvm.tar.xz"
         _log(console, f"[pymcu-rp2040-toolchain] downloading {url}")
-        urllib.request.urlretrieve(url, archive)
+        req = urllib.request.Request(url, headers={"User-Agent": "pymcu-rp2040-toolchain/1.0"})
+        with urllib.request.urlopen(req, context=_ssl_context()) as resp, \
+                open(archive, "wb") as fh:
+            while True:
+                chunk = resp.read(1 << 16)
+                if not chunk:
+                    break
+                fh.write(chunk)
         _verify_sha256(archive, sha)
         _log(console, "[pymcu-rp2040-toolchain] extracting ...")
         with tarfile.open(archive, "r:xz") as tf:
