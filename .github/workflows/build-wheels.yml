@@ -187,36 +187,45 @@ jobs:
           name: sha256sums
           path: dist/
 
-      - name: Create GitHub Release and attach wheels
+      - name: Create or update GitHub Release and attach wheels
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "pymcu-rp2040-toolchain ${{ github.ref_name }}" \
-            --notes "## Binary wheels — LLVM ${LLVM_VERSION}
+          NOTES="## Binary wheels — LLVM ${LLVM_VERSION}
 
           Binary wheels are too large for PyPI (300+ MB each). Install directly:
 
           \`\`\`bash
           # Linux x86-64
-          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-manylinux_2_17_x86_64.whl
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-manylinux_2_17_x86_64.whl
 
           # Linux arm64
-          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-manylinux_2_17_aarch64.whl
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-manylinux_2_17_aarch64.whl
 
           # macOS Apple Silicon
-          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-macosx_14_0_arm64.whl
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-macosx_14_0_arm64.whl
 
           # Windows x86-64
-          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-win_amd64.whl
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-win_amd64.whl
           \`\`\`
 
           Or pre-fetch tools to \`~/.pymcu/tools/\` without a binary wheel:
           \`\`\`bash
           python -m pymcu_rp2040_toolchain fetch --cache
-          \`\`\`" \
-            dist/*.whl dist/SHA256SUMS
+          \`\`\`"
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading assets only."
+            gh release upload "$TAG" dist/*.whl dist/SHA256SUMS \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "pymcu-rp2040-toolchain ${TAG}" \
+              --notes "$NOTES" \
+              dist/*.whl dist/SHA256SUMS
+          fi
 
   # ---------------------------------------------------------------------------
   # Pure-Python stub (sdist only) -> PyPI via OIDC trusted publishing.
