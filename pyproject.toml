@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pymcu-rp2040-toolchain"
+version = "19.1.7"
+description = "Vendored LLVM toolchain (opt/llc/llvm-mc/ld.lld/llvm-objcopy) for the PyMCU RP2040 backend"
+readme = "README.md"
+authors = [
+    { name = "Iván Montiel Cardona", email = "developer@begeistert.dev" }
+]
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["pymcu", "rp2040", "llvm", "toolchain", "cortex-m0plus"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Embedded Systems",
+]
+
+[project.urls]
+Homepage = "https://github.com/begeistert/pymcu"
+
+[tool.hatch.version]
+# Pin the package version to the LLVM version it ships (matches the
+# pymcu-avr-toolchain convention of tracking the bundled compiler version).
+path = "src/pymcu_rp2040_toolchain/__init__.py"
+pattern = "LLVM_VERSION = \"(?P<version>[^\"]+)\""
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pymcu_rp2040_toolchain"]
+# Binaries staged by `python -m pymcu_rp2040_toolchain fetch --bundle` (CI /
+# publishing) land in _bin/_lib and must be force-included with their +x bit.
+artifacts = [
+    "src/pymcu_rp2040_toolchain/_bin/**",
+    "src/pymcu_rp2040_toolchain/_lib/**",
+]

@@ -1,0 +1,2 @@
+# Binaries are staged here by `python -m pymcu_rp2040_toolchain fetch --bundle`.
+# Kept empty in source control; populated per-platform at wheel-build time.
