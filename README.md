@@ -121,28 +121,21 @@ The download URL defaults to the official LLVM GitHub release for
    git push origin v19.1.7
    ```
 3. The `build-wheels.yml` workflow fires automatically:
-   - **3-platform matrix** downloads the official LLVM archives from
-     `github.com/llvm/llvm-project/releases`.
-   - `scripts/stage-llvm.sh` slims each archive to the 5 tools + shared
-     libs; on macOS it rewrites absolute dylib paths to `@rpath`.
-   - `hatch_build.py` bundles the staged tree into a `py3-none-<platform>`
-     wheel.
+   - **Linux x64 / macOS arm64** — download the official `.tar.xz` from the
+     LLVM GitHub release, slim it with `scripts/stage-llvm.sh` (rewrites
+     macOS dylib paths to `@rpath`), build a `py3-none-<platform>` wheel.
+   - **Windows x64** — download the NSIS `.exe` installer, install silently
+     to `C:\LLVM`, copy the five tools + DLLs with PowerShell.
    - `collect-and-release` smoke-tests the Linux wheel and generates
      `SHA256SUMS`.
-   - `publish-pypi` uploads all wheels + sdist to **public PyPI** via
-     OIDC trusted publishing (no stored token).
-   - `publish-private` uploads to the private Gitea index over Headscale.
+   - `publish-pypi` uploads all wheels + sdist to **public PyPI** via OIDC
+     trusted publishing (no stored token required).
 
-### Required GitHub secrets / environments
+### Required GitHub configuration
 
-| Name | Where | Purpose |
+| Item | Where | Purpose |
 |---|---|---|
-| `release` environment | Repo settings | Enables OIDC trusted publishing on PyPI |
-| `HEADSCALE_AUTH_KEY` | Repo secret | Tailscale auth for the private network |
-| `HEADSCALE_URL` | Repo secret | Headscale control server URL |
-| `PRIVATE_PYPI_URL` | Repo secret | Private Gitea PyPI endpoint |
-| `PRIVATE_PYPI_USERNAME` | Repo secret | Gitea username |
-| `PRIVATE_PYPI_TOKEN` | Repo secret | Gitea API token |
+| `release` environment | Repo → Settings → Environments | Gates OIDC publishing; add tag protection rule `v*` |
 
 ### Building a wheel locally (testing)
 
