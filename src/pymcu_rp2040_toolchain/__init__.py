@@ -131,11 +131,16 @@ def get_tool(name: str) -> Path:
     """
     Return the filesystem path to a bundled (or cached) LLVM tool.
 
+    On the first call when no binaries are present (sdist / stub install from
+    PyPI), the LLVM release for the current platform is downloaded automatically
+    into the shared cache at ``~/.pymcu/tools/``.
+
     Raises
     ------
     FileNotFoundError
-        If *name* is not one of :data:`TOOLS`, or no binary is available in
-        the wheel bundle or the cache.
+        If *name* is not one of :data:`TOOLS`.
+    RuntimeError
+        If the automatic download fails.
     """
     if name not in TOOLS:
         raise FileNotFoundError(
@@ -143,10 +148,16 @@ def get_tool(name: str) -> Path:
             f"(known tools: {', '.join(TOOLS)})"
         )
     found = _resolve(name)
+    if found is not None:
+        return found
+    # Auto-download on first use (sdist / stub install — no bundled binaries).
+    from ._fetch import fetch  # noqa: PLC0415
+    fetch(target="cache")
+    found = _resolve(name)
     if found is None:
         raise FileNotFoundError(
-            f"LLVM tool {name!r} is not vendored in this install.\n"
-            f"Populate it with: python -m pymcu_rp2040_toolchain fetch --cache"
+            f"LLVM tool {name!r} not found after download.\n"
+            f"Try manually: python -m pymcu_rp2040_toolchain fetch --cache"
         )
     return found
 
