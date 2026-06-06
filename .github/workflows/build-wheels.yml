@@ -16,9 +16,16 @@ jobs:
   # slims it to the five required tools + shared libs, then packages a wheel.
   #
   # Asset names for llvmorg-22.1.7:
-  #   Linux  x64  -> LLVM-22.1.7-Linux-X64.tar.xz
-  #   macOS arm64 -> LLVM-22.1.7-macOS-ARM64.tar.xz
-  #   Windows x64 -> clang+llvm-22.1.7-x86_64-pc-windows-msvc.tar.xz
+  #   Linux  x64   -> LLVM-22.1.7-Linux-X64.tar.xz
+  #   Linux  arm64 -> LLVM-22.1.7-Linux-ARM64.tar.xz
+  #   macOS arm64  -> LLVM-22.1.7-macOS-ARM64.tar.xz
+  #   Windows x64  -> clang+llvm-22.1.7-x86_64-pc-windows-msvc.tar.xz
+  #
+  # NOTE on wheel size: libLLVM.{dylib,so} is 200-300 MB of code even without
+  # debug symbols (official LLVM releases are already release-stripped). Binary
+  # wheels are therefore too large for PyPI's 100 MB per-file limit and are
+  # published to GitHub Releases instead (see publish-github-release).
+  # PyPI receives only the pure-Python sdist stub (see publish-pypi).
   # ---------------------------------------------------------------------------
   package:
     name: Package ${{ matrix.name }} wheel
@@ -34,6 +41,10 @@ jobs:
             runs-on: ubuntu-latest
             asset: LLVM-22.1.7-Linux-X64.tar.xz
             wheel_tag: manylinux_2_17_x86_64
+          - name: linux-arm64
+            runs-on: ubuntu-24.04-arm
+            asset: LLVM-22.1.7-Linux-ARM64.tar.xz
+            wheel_tag: manylinux_2_17_aarch64
           - name: macos-arm64
             runs-on: macos-latest
             asset: LLVM-22.1.7-macOS-ARM64.tar.xz
@@ -80,6 +91,10 @@ jobs:
           WHEEL_PLATFORM_TAG: ${{ matrix.wheel_tag }}
         run: uv build --wheel
 
+      - name: Report wheel size
+        shell: bash
+        run: du -sh dist/*.whl
+
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.name }}
@@ -105,10 +120,16 @@ jobs:
           path: dist/
           merge-multiple: true
 
-      - name: Build sdist (no binaries)
+      - name: Build sdist (no binaries — published to PyPI)
         run: uv build --sdist
 
-      - name: Smoke test (Linux wheel)
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+      - name: Smoke test (Linux x64 wheel)
         run: |
           WHEEL=$(ls dist/pymcu_rp2040_toolchain-*-manylinux_2_17_x86_64.whl | head -1)
           uv run --with "$WHEEL" python -c "
@@ -128,21 +149,32 @@ jobs:
           sha256sum *.whl *.tar.gz > SHA256SUMS
           cat SHA256SUMS
 
+      - name: Upload SHA256SUMS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sha256sums
+          path: dist/SHA256SUMS
+
       - name: List artifacts
         run: ls -lh dist/
 
   # ---------------------------------------------------------------------------
-  # Publish to PyPI via OIDC trusted publishing (no stored token required).
+  # Binary wheels -> GitHub Release (no per-file size limit).
+  # Users can pip-install a specific wheel directly:
+  #   pip install https://github.com/<owner>/pymcu-rp2040-toolchain/releases/
+  #               download/v22.1.7/pymcu_rp2040_toolchain-22.1.7-py3-none-
+  #               manylinux_2_17_x86_64.whl
+  # Or let the Rp2040LlvmToolchain driver auto-download LLVM tools to
+  # ~/.pymcu/tools/ on first use via _fetch.py.
   # Fires ONLY on tag pushes (v*). workflow_dispatch never triggers this job.
   # ---------------------------------------------------------------------------
-  publish-pypi:
-    name: Publish to PyPI
+  publish-github-release:
+    name: Publish binary wheels to GitHub Releases
     needs: collect-and-release
     runs-on: ubuntu-latest
-    environment: release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
-      id-token: write
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -152,10 +184,61 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
+          name: sha256sums
+          path: dist/
+
+      - name: Create GitHub Release and attach wheels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "pymcu-rp2040-toolchain ${{ github.ref_name }}" \
+            --notes "## Binary wheels — LLVM ${LLVM_VERSION}
+
+          Binary wheels are too large for PyPI (300+ MB each). Install directly:
+
+          \`\`\`bash
+          # Linux x86-64
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-manylinux_2_17_x86_64.whl
+
+          # Linux arm64
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-manylinux_2_17_aarch64.whl
+
+          # macOS Apple Silicon
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-macosx_14_0_arm64.whl
+
+          # Windows x86-64
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ github.ref_name }}/pymcu_rp2040_toolchain-${LLVM_VERSION}-py3-none-win_amd64.whl
+          \`\`\`
+
+          Or pre-fetch tools to \`~/.pymcu/tools/\` without a binary wheel:
+          \`\`\`bash
+          python -m pymcu_rp2040_toolchain fetch --cache
+          \`\`\`" \
+            dist/*.whl dist/SHA256SUMS
+
+  # ---------------------------------------------------------------------------
+  # Pure-Python stub (sdist only) -> PyPI via OIDC trusted publishing.
+  # The stub makes the package discoverable via pip; tools are resolved at
+  # runtime from the wheel bundle, the cache, or PATH.
+  # Fires ONLY on tag pushes (v*). workflow_dispatch never triggers this job.
+  # ---------------------------------------------------------------------------
+  publish-pypi:
+    name: Publish stub to PyPI
+    needs: collect-and-release
+    runs-on: ubuntu-latest
+    environment: release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
           name: dist-sdist
           path: dist/
 
       - uses: astral-sh/setup-uv@v6
 
-      - name: Publish to PyPI
-        run: uv publish dist/*
+      - name: Publish stub to PyPI
+        run: uv publish dist/*.tar.gz

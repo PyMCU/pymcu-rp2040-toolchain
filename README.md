@@ -41,18 +41,42 @@ explanation.
 
 ## Installation
 
-```bash
-# Automatic — included when you install the RP2040 extra:
-pip install pymcu-compiler[rp2040]
+`libLLVM.{dylib,so}` is 200–300 MB of code even in a release build — too
+large for PyPI's 100 MB per-file ceiling. The distribution is therefore split:
 
-# Standalone:
-pip install pymcu-rp2040-toolchain
+| Channel | What it contains |
+|---|---|
+| **PyPI** (`pip install pymcu-rp2040-toolchain`) | Pure-Python stub — no binaries; tools are resolved from the cache or PATH |
+| **GitHub Releases** | Binary wheels with LLVM bundled (~300 MB each) |
+
+### Option A — direct wheel install (recommended for CI / offline use)
+
+```bash
+# Linux x86-64
+pip install https://github.com/begeistert/pymcu-rp2040-toolchain/releases/download/v22.1.7/pymcu_rp2040_toolchain-22.1.7-py3-none-manylinux_2_17_x86_64.whl
+
+# Linux arm64
+pip install https://github.com/begeistert/pymcu-rp2040-toolchain/releases/download/v22.1.7/pymcu_rp2040_toolchain-22.1.7-py3-none-manylinux_2_17_aarch64.whl
+
+# macOS Apple Silicon
+pip install https://github.com/begeistert/pymcu-rp2040-toolchain/releases/download/v22.1.7/pymcu_rp2040_toolchain-22.1.7-py3-none-macosx_14_0_arm64.whl
+
+# Windows x86-64
+pip install https://github.com/begeistert/pymcu-rp2040-toolchain/releases/download/v22.1.7/pymcu_rp2040_toolchain-22.1.7-py3-none-win_amd64.whl
 ```
 
-Platform wheels are published for **Linux x86-64**, **macOS arm64**, and
-**Windows x86-64**. On other platforms (Linux arm64, macOS Intel, etc.) the
-`Rp2040LlvmToolchain` falls back to a system LLVM found via the cache or
-`PATH` (`brew install llvm lld` / `apt install llvm lld`).
+### Option B — runtime download to cache (recommended for developer installs)
+
+```bash
+pip install pymcu-rp2040-toolchain          # stub from PyPI
+python -m pymcu_rp2040_toolchain fetch --cache   # download LLVM to ~/.pymcu/tools/
+```
+
+### Option C — system LLVM
+
+If you already have LLVM 18+ installed (`brew install llvm lld` /
+`apt install llvm lld`), the `Rp2040LlvmToolchain` driver finds the tools via
+the cache or `PATH` automatically — no package needed.
 
 ## How the driver resolves tools
 
@@ -154,16 +178,15 @@ Without `RP2040T_TOOLCHAIN_DIR` a pure-Python wheel (`py3-none-any`) is
 produced — useful for development and sdist; the driver resolves tools from
 the cache or system PATH at runtime.
 
-### Wheel size and PyPI limits
+### Wheel size and distribution strategy
 
-PyPI enforces a **100 MB per-file** limit. `libLLVM.dylib` (macOS) and
-`libLLVM.so` (Linux) are ~250 MB unstripped. The `stage-llvm.sh` script runs
-`strip -x` (macOS) / `strip --strip-debug` (Linux) on every binary and shared
-library it stages, bringing the macOS wheel to ~70–90 MB. The CI workflow
-measures the staged tree with `du -sh` before building the wheel; if a future
-LLVM bump pushes the size back over the limit, file a PyPI support request at
-<https://pypi.org/help/#file-size-limit> for a project-level increase (up to
-1 GB is routinely granted for toolchain packages).
+`libLLVM.{dylib,so}` is 200–300 MB of pure code even in a release build
+(official LLVM releases are already compiled without debug info — strip does
+not help). This exceeds PyPI's 100 MB per-file ceiling.
+
+**Binary wheels are therefore published to GitHub Releases**, not PyPI. PyPI
+receives only the pure-Python sdist stub. See the Installation section for the
+three ways to get the LLVM tools.
 
 ## Environment variables
 
