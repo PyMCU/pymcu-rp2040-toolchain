@@ -2,8 +2,8 @@
 Toolchain supply-chain smoke tests for pymcu-rp2040-toolchain.
 
 These tests verify that the LLVM tools are correctly installed on the current
-platform: all five tools exist, execute bits are set, and basic invocation
-(--version / --help) works.
+platform and that the full pipeline (LLVM IR → opt → llc → llvm-mc → ld.lld
+→ llvm-objcopy) produces a valid flat binary.
 
 Run with:
     pytest tests/test_toolchain_smoke.py -v
@@ -41,12 +41,56 @@ pytestmark = pytest.mark.skipif(
 _IS_WIN = sys.platform == "win32"
 _EXE = ".exe" if _IS_WIN else ""
 
+# RP2040 target identifiers — must match llvm.py in the rp2040 backend
+TARGET_TRIPLE = "thumbv6m-none-eabi"
+TARGET_CPU = "cortex-m0plus"
+
+# Minimal LLVM IR for Thumb-2 (single function, no side effects)
+_MINIMAL_LL = f"""\
+target triple = "{TARGET_TRIPLE}"
+target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
+
+define i32 @add(i32 %a, i32 %b) {{
+  %sum = add i32 %a, %b
+  ret i32 %sum
+}}
+
+define void @main() {{
+  ret void
+}}
+"""
+
+# Minimal RP2040 linker script: flash at 0x10000000, SRAM at 0x20000000
+_MINIMAL_LD = """\
+ENTRY(main)
+SECTIONS {
+  . = 0x10000000;
+  .text : { *(.text*) }
+  . = ALIGN(4);
+  . = 0x20000000;
+  .data : { *(.data*) }
+  .bss  : { *(.bss*) *(COMMON) }
+}
+"""
+
+# Minimal Thumb-2 assembly (crt0 stub) for llvm-mc to assemble
+_MINIMAL_ASM = f"""\
+.syntax unified
+.arch armv6-m
+.thumb
+.global _start
+.type _start, %function
+_start:
+    bl main
+    b .
+"""
+
 
 def _run(*args, **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(
         [str(a) for a in args],
         capture_output=True,
-        timeout=30,
+        timeout=60,
         **kwargs,
     )
 
@@ -141,10 +185,215 @@ class TestToolExecution:
         out = r.stdout.decode().lower()
         assert "lld" in out, f"unexpected output: {out[:200]}"
 
-    def test_llc_target_list(self):
+    def test_llc_lists_thumb_target(self):
         r = _run(_bin_dir() / f"llc{_EXE}", "--version")
         assert r.returncode == 0
         out = (r.stdout + r.stderr).decode().lower()
         assert "thumb" in out or "arm" in out, (
             "llc does not list ARM/Thumb targets — wrong LLVM build?\n" + out[:500]
         )
+
+
+# ---------------------------------------------------------------------------
+# 4. Full LLVM pipeline: IR → opt → llc → llvm-mc → ld.lld → llvm-objcopy
+#
+# Mirrors the sequence in rp2040 backend's llvm.py:
+#   opt  -O2              firmware.ll    → firmware.opt.ll
+#   llc  -mtriple=thumbv6m-none-eabi     → firmware.o
+#   llvm-mc -triple=thumbv6m-none-eabi   → crt0.o
+#   ld.lld -T rp2040.ld  *.o            → firmware.elf
+#   llvm-objcopy -O binary               → firmware.bin
+# ---------------------------------------------------------------------------
+
+
+class TestLlvmPipeline:
+    """End-to-end pipeline sanity check on every CI platform."""
+
+    @pytest.fixture(autouse=True)
+    def tmp(self, tmp_path):
+        self._d = tmp_path
+        yield tmp_path
+
+    def _d_path(self, name: str) -> Path:
+        return self._d / name
+
+    # ── individual stage tests ─────────────────────────────────────────────
+
+    def test_opt_optimizes_ir(self):
+        ll = self._d_path("add.ll")
+        ll.write_text(_MINIMAL_LL)
+        out_ll = self._d_path("add.opt.ll")
+        r = _run(
+            _tc.get_tool("opt"),
+            "-O2", "-S",
+            str(ll), "-o", str(out_ll),
+        )
+        assert r.returncode == 0, f"opt failed:\n{r.stderr.decode()}"
+        assert out_ll.exists() and out_ll.stat().st_size > 0
+
+    def test_llc_compiles_ir_to_object(self):
+        ll = self._d_path("add.ll")
+        ll.write_text(_MINIMAL_LL)
+        obj = self._d_path("add.o")
+        r = _run(
+            _tc.get_tool("llc"),
+            f"-mtriple={TARGET_TRIPLE}",
+            f"-mcpu={TARGET_CPU}",
+            "-O2", "-filetype=obj",
+            str(ll), "-o", str(obj),
+        )
+        assert r.returncode == 0, f"llc failed:\n{r.stderr.decode()}"
+        assert obj.exists() and obj.stat().st_size > 0
+
+    def test_llvm_mc_assembles_asm(self):
+        asm = self._d_path("crt0.s")
+        asm.write_text(_MINIMAL_ASM)
+        obj = self._d_path("crt0.o")
+        r = _run(
+            _tc.get_tool("llvm-mc"),
+            f"-triple={TARGET_TRIPLE}",
+            "-filetype=obj",
+            str(asm), "-o", str(obj),
+        )
+        assert r.returncode == 0, f"llvm-mc failed:\n{r.stderr.decode()}"
+        assert obj.exists() and obj.stat().st_size > 0
+
+    def test_lld_links_objects(self):
+        # Build IR object
+        ll = self._d_path("add.ll")
+        ll.write_text(_MINIMAL_LL)
+        fw_o = self._d_path("fw.o")
+        _run(
+            _tc.get_tool("llc"),
+            f"-mtriple={TARGET_TRIPLE}", f"-mcpu={TARGET_CPU}",
+            "-O2", "-filetype=obj",
+            str(ll), "-o", str(fw_o),
+        )
+        # Write linker script
+        ld_script = self._d_path("rp2040.ld")
+        ld_script.write_text(_MINIMAL_LD)
+        # Link
+        elf = self._d_path("firmware.elf")
+        r = _run(
+            _tc.get_tool("ld.lld"),
+            "-T", str(ld_script),
+            str(fw_o),
+            "-o", str(elf),
+        )
+        assert r.returncode == 0, f"ld.lld failed:\n{r.stderr.decode()}"
+        assert elf.exists() and elf.stat().st_size > 0
+
+    def test_objcopy_extracts_binary(self):
+        # Build + link
+        ll = self._d_path("add.ll")
+        ll.write_text(_MINIMAL_LL)
+        fw_o = self._d_path("fw.o")
+        _run(
+            _tc.get_tool("llc"),
+            f"-mtriple={TARGET_TRIPLE}", f"-mcpu={TARGET_CPU}",
+            "-O2", "-filetype=obj",
+            str(ll), "-o", str(fw_o),
+        )
+        ld_script = self._d_path("rp2040.ld")
+        ld_script.write_text(_MINIMAL_LD)
+        elf = self._d_path("firmware.elf")
+        _run(
+            _tc.get_tool("ld.lld"),
+            "-T", str(ld_script), str(fw_o), "-o", str(elf),
+        )
+        # objcopy → flat binary
+        binfile = self._d_path("firmware.bin")
+        r = _run(
+            _tc.get_tool("llvm-objcopy"),
+            "-O", "binary", str(elf), str(binfile),
+        )
+        assert r.returncode == 0, f"llvm-objcopy failed:\n{r.stderr.decode()}"
+        assert binfile.exists() and binfile.stat().st_size > 0
+
+    def test_full_pipeline(self):
+        """Full pipeline in one shot: IR + asm → opt → obj × 2 → link → binary."""
+        ll = self._d_path("fw.ll")
+        ll.write_text(_MINIMAL_LL)
+        asm = self._d_path("crt0.s")
+        asm.write_text(_MINIMAL_ASM)
+        ld_script = self._d_path("rp2040.ld")
+        ld_script.write_text(_MINIMAL_LD)
+
+        # Step 1 — optimize IR
+        opt_ll = self._d_path("fw.opt.ll")
+        r = _run(_tc.get_tool("opt"), "-O2", "-S", str(ll), "-o", str(opt_ll))
+        assert r.returncode == 0, f"opt: {r.stderr.decode()}"
+
+        # Step 2a — compile IR to object
+        fw_o = self._d_path("fw.o")
+        r = _run(
+            _tc.get_tool("llc"),
+            f"-mtriple={TARGET_TRIPLE}", f"-mcpu={TARGET_CPU}",
+            "-O2", "-filetype=obj", str(opt_ll), "-o", str(fw_o),
+        )
+        assert r.returncode == 0, f"llc: {r.stderr.decode()}"
+
+        # Step 2b — assemble startup stub
+        crt0_o = self._d_path("crt0.o")
+        r = _run(
+            _tc.get_tool("llvm-mc"),
+            f"-triple={TARGET_TRIPLE}", "-filetype=obj",
+            str(asm), "-o", str(crt0_o),
+        )
+        assert r.returncode == 0, f"llvm-mc: {r.stderr.decode()}"
+
+        # Step 3 — link
+        elf = self._d_path("firmware.elf")
+        r = _run(
+            _tc.get_tool("ld.lld"),
+            "-T", str(ld_script), str(crt0_o), str(fw_o), "-o", str(elf),
+        )
+        assert r.returncode == 0, f"ld.lld: {r.stderr.decode()}"
+
+        # Step 4 — extract flat binary
+        binfile = self._d_path("firmware.bin")
+        r = _run(
+            _tc.get_tool("llvm-objcopy"),
+            "-O", "binary", str(elf), str(binfile),
+        )
+        assert r.returncode == 0, f"llvm-objcopy: {r.stderr.decode()}"
+
+        assert binfile.stat().st_size > 0, "firmware.bin is empty — pipeline produced no code"
+
+
+# ---------------------------------------------------------------------------
+# 5. Rp2040LlvmToolchain integration (only when pymcu-rp2040 is installed)
+# ---------------------------------------------------------------------------
+
+try:
+    from pymcu.toolchain.rp2040.llvm import Rp2040LlvmToolchain as _Rp2040Toolchain
+    from rich.console import Console as _Console
+    _HAS_BACKEND = True
+except ImportError:
+    _HAS_BACKEND = False
+
+
+@pytest.mark.skipif(not _HAS_BACKEND, reason="pymcu-rp2040 not installed")
+class TestRp2040LlvmToolchain:
+    """Validate Rp2040LlvmToolchain API — skipped if pymcu-rp2040 is absent."""
+
+    @pytest.fixture
+    def toolchain(self):
+        return _Rp2040Toolchain(_Console(quiet=True))
+
+    def test_supports_rp2040(self, toolchain):
+        assert toolchain.supports("rp2040")
+
+    def test_is_cached(self, toolchain):
+        assert toolchain.is_cached(), (
+            "Toolchain reports not cached despite pymcu-rp2040-toolchain being installed"
+        )
+
+    def test_full_pipeline(self, toolchain, tmp_path):
+        ll = tmp_path / "fw.ll"
+        ll.write_text(_MINIMAL_LL)
+        binfile = toolchain.compile(
+            ll_file=ll,
+            out_dir=tmp_path,
+        )
+        assert binfile.exists() and binfile.stat().st_size > 0
