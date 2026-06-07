@@ -1,0 +1,60 @@
+name: Toolchain smoke test
+
+# Validates that the published pymcu-rp2040-toolchain wheel works correctly
+# on all target platforms. Runs after every GitHub Release is published.
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [master, main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - ".github/workflows/smoke-test.yml"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pymcu-rp2040-toolchain + pytest
+        run: |
+          uv venv .venv
+          uv pip install --python .venv pymcu-rp2040-toolchain pytest
+
+      - name: Pre-seed toolchain (triggers download if sdist path)
+        shell: bash
+        run: |
+          uv run --python .venv python -c "
+          import pymcu_rp2040_toolchain as tc
+          missing = tc.missing_tools()
+          if missing:
+              print(f'Downloading missing tools: {missing}')
+              for name in missing:
+                  tc.get_tool(name)
+          print(f'tools_bin_dir: {tc.tools_bin_dir()}')
+          print(f'is_installed: {tc.is_installed()}')
+          "
+
+      - name: Run smoke tests
+        run: uv run --python .venv pytest tests/ -v --tb=short
