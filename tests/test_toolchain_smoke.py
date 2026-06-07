@@ -24,18 +24,19 @@ import pytest
 
 try:
     import pymcu_rp2040_toolchain as _tc
-
-    _HAS_TOOLCHAIN = _tc.is_installed()
-    _MISSING = _tc.missing_tools()
-    _TC_ERROR = f"missing: {_MISSING}" if _MISSING else ""
+    # get_tool() triggers auto-download on first use when only the stub is
+    # installed (no bundled binaries) — same pattern as AVR's get_bin_dir().
+    _BIN_DIR: Path = _tc.get_tool("opt").parent
+    _HAS_TOOLCHAIN = True
+    _TC_ERROR = ""
 except Exception as exc:
+    _BIN_DIR = Path("/nonexistent")
     _HAS_TOOLCHAIN = False
-    _MISSING = []
     _TC_ERROR = str(exc)
 
 pytestmark = pytest.mark.skipif(
     not _HAS_TOOLCHAIN,
-    reason=f"pymcu-rp2040-toolchain not installed or tools missing: {_TC_ERROR}",
+    reason=f"pymcu-rp2040-toolchain not available: {_TC_ERROR}",
 )
 
 _IS_WIN = sys.platform == "win32"
@@ -96,9 +97,7 @@ def _run(*args, **kwargs) -> subprocess.CompletedProcess:
 
 
 def _bin_dir() -> Path:
-    d = _tc.tools_bin_dir()
-    assert d is not None, "tools_bin_dir() returned None — toolchain not installed"
-    return d
+    return _BIN_DIR
 
 
 # ---------------------------------------------------------------------------
