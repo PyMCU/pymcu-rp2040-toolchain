@@ -68,16 +68,16 @@ binary wheel directly:
 
 ```bash
 # Linux x86-64
-pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7.post4/pymcu_arm_toolchain-22.1.7.post4-py3-none-manylinux_2_17_x86_64.whl
+pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7/pymcu_arm_toolchain-22.1.7-py3-none-manylinux_2_17_x86_64.whl
 
 # Linux arm64
-pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7.post4/pymcu_arm_toolchain-22.1.7.post4-py3-none-manylinux_2_17_aarch64.whl
+pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7/pymcu_arm_toolchain-22.1.7-py3-none-manylinux_2_17_aarch64.whl
 
 # macOS Apple Silicon
-pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7.post4/pymcu_arm_toolchain-22.1.7.post4-py3-none-macosx_14_0_arm64.whl
+pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7/pymcu_arm_toolchain-22.1.7-py3-none-macosx_14_0_arm64.whl
 
 # Windows x86-64
-pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7.post4/pymcu_arm_toolchain-22.1.7.post4-py3-none-win_amd64.whl
+pip install https://github.com/PyMCU/pymcu-arm-toolchain/releases/download/v22.1.7/pymcu_arm_toolchain-22.1.7-py3-none-win_amd64.whl
 ```
 
 ### System LLVM (alternative)
@@ -184,5 +184,4 @@ uv build --wheel
 
 | Package version | Bundled LLVM | Notes |
 |---|---|---|
-| 22.1.7.post4 | LLVM 22.1.7 | Rename package pymcu-rp2040-toolchain → pymcu-arm-toolchain |
 | 22.1.7 | LLVM 22.1.7 | Initial release |
