@@ -4,5 +4,5 @@ requires-python = ">=3.11"
 
 [[package]]
 name = "pymcu-rp2040-toolchain"
-version = "19.1.7"
+version = "22.1.7.post4"
 source = { editable = "." }

@@ -20,6 +20,7 @@ jobs:
   #   Linux  arm64 -> LLVM-22.1.7-Linux-ARM64.tar.xz
   #   macOS arm64  -> LLVM-22.1.7-macOS-ARM64.tar.xz
   #   Windows x64  -> clang+llvm-22.1.7-x86_64-pc-windows-msvc.tar.xz
+  #   Windows arm64-> clang+llvm-22.1.7-aarch64-pc-windows-msvc.tar.xz
   #
   # NOTE on wheel size: libLLVM.{dylib,so} is 200-300 MB of code even without
   # debug symbols (official LLVM releases are already release-stripped). Binary
@@ -53,6 +54,15 @@ jobs:
             runs-on: windows-latest
             asset: clang+llvm-22.1.7-x86_64-pc-windows-msvc.tar.xz
             wheel_tag: win_amd64
+          # Windows on Arm. The wheel only downloads + slims + bundles the
+          # upstream LLVM archive (no compilation), so it builds natively on a
+          # windows-11-arm runner (GA & free for public repos). The arm64 LLVM
+          # archive is the same toolchain behind the LLVM-<ver>-woa64.exe
+          # installer.
+          - name: windows-arm64
+            runs-on: windows-11-arm
+            asset: clang+llvm-22.1.7-aarch64-pc-windows-msvc.tar.xz
+            wheel_tag: win_arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -204,6 +214,9 @@ jobs:
 
           # Windows x86-64
           pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/pymcu_arm_toolchain-${LLVM_VERSION}-py3-none-win_amd64.whl
+
+          # Windows on Arm (arm64)
+          pip install https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/pymcu_arm_toolchain-${LLVM_VERSION}-py3-none-win_arm64.whl
           \`\`\`
 
           Or pre-fetch tools to \`~/.pymcu/tools/\` without a binary wheel:

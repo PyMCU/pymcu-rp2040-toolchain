@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# pymcu-rp2040-toolchain -- LLVM binary staging / download
+# pymcu-arm-toolchain -- LLVM binary staging / download
 # Copyright (C) 2026 Ivan Montiel Cardona and the PyMCU Project Authors
 #
 # SPDX-License-Identifier: MIT
@@ -8,10 +8,10 @@
 """
 Stage the five LLVM tools (and the shared libraries they dlopen) into either:
 
-* the in-wheel bundle (``_bin`` / ``_lib``) -- run by CI / the publishing
+* the in-wheel bundle (``bin`` / ``lib``) -- run by CI / the publishing
   pipeline before building a platform wheel, so the wheel is self-contained;
-* the shared PyMCU tool cache (``~/.pymcu/tools/<platform>/llvm-rp2040``) --
-  run on the user's machine by ``python -m pymcu_rp2040_toolchain fetch
+* the shared PyMCU tool cache (``~/.pymcu/tools/<platform>/llvm-arm``) --
+  run on the user's machine by ``python -m pymcu_arm_toolchain fetch
   --cache`` when no bundled binaries are present.
 
 Two sources are supported:
@@ -24,13 +24,13 @@ Two sources are supported:
   current platform from GitHub and stage from it.
 
 Distribution note: the supported platforms ship **pre-built wheels on PyPI**
-(`pip install pymcu-rp2040-toolchain`), so the normal install path never runs
+(`pip install pymcu-arm-toolchain`), so the normal install path never runs
 this module -- the binaries are already bundled and their integrity is
 guaranteed by PyPI. SHA-256 pinning of the upstream archive is therefore
 **optional**: it is only a best-effort safety net for the runtime download
 fallback used on platforms without a published wheel (or in development).
-Set ``PYMCU_RP2040_LLVM_SHA256`` to enforce it, or ``PYMCU_SKIP_HASH_CHECK=1``
-to skip it explicitly. ``PYMCU_RP2040_LLVM_URL`` overrides the archive URL.
+Set ``PYMCU_ARM_LLVM_SHA256`` to enforce it, or ``PYMCU_SKIP_HASH_CHECK=1``
+to skip it explicitly. ``PYMCU_ARM_LLVM_URL`` overrides the archive URL.
 """
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ _LIB_GLOBS = ("libLLVM*", "libLTO*", "libc++*", "libc++abi*", "libunwind*")
 # Official LLVM GitHub release assets, keyed by platform, used ONLY by the
 # runtime download fallback (the published PyPI wheels bundle the binaries and
 # do not download anything). sha256 is intentionally blank -- verification is
-# optional here (see module docstring); supply PYMCU_RP2040_LLVM_SHA256 to
+# optional here (see module docstring); supply PYMCU_ARM_LLVM_SHA256 to
 # enforce it. The asset names follow the llvm/llvm-project release convention.
 _RELEASE_BASE = f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{LLVM_VERSION}"
 # Exact asset filenames as published on the llvmorg-22.1.7 release page.
@@ -118,6 +118,13 @@ _RELEASES: Dict[str, Dict[str, str]] = {
         "url": f"{_RELEASE_BASE}/clang+llvm-{LLVM_VERSION}-x86_64-pc-windows-msvc.tar.xz",
         "sha256": "",
     },
+    # Windows on Arm: LLVM ships an aarch64-pc-windows-msvc archive (the same
+    # toolchain behind the LLVM-<ver>-woa64.exe installer). Verify the exact
+    # asset name on the llvmorg-<ver> release page if a future bump renames it.
+    "win32-arm64": {
+        "url": f"{_RELEASE_BASE}/clang+llvm-{LLVM_VERSION}-aarch64-pc-windows-msvc.tar.xz",
+        "sha256": "",
+    },
 }
 
 
@@ -126,15 +133,15 @@ def _exe(name: str) -> str:
 
 
 def _release_for_platform() -> Dict[str, str]:
-    url = os.environ.get("PYMCU_RP2040_LLVM_URL")
+    url = os.environ.get("PYMCU_ARM_LLVM_URL")
     if url:
-        return {"url": url, "sha256": os.environ.get("PYMCU_RP2040_LLVM_SHA256", "")}
+        return {"url": url, "sha256": os.environ.get("PYMCU_ARM_LLVM_SHA256", "")}
     key = platform_key()
     rel = _RELEASES.get(key)
     if rel is None:
         raise RuntimeError(
             f"No pinned LLVM release for platform {key!r}. Set "
-            f"PYMCU_RP2040_LLVM_URL to an archive, or use --from-dir with a "
+            f"PYMCU_ARM_LLVM_URL to an archive, or use --from-dir with a "
             f"locally installed LLVM."
         )
     return rel
@@ -200,13 +207,13 @@ def _stage_from_dir(
             shutil.copy2(s, d)
             d.chmod(0o755)
     if link:
-        _log(console, f"[pymcu-rp2040-toolchain] linked {len(TOOLS)} tools -> {dest_bin}")
+        _log(console, f"[pymcu-arm-toolchain] linked {len(TOOLS)} tools -> {dest_bin}")
         return
 
     nlibs = _copy_libs(src_lib, dest_lib)
     _log(
         console,
-        f"[pymcu-rp2040-toolchain] copied {len(TOOLS)} tools + {nlibs} shared "
+        f"[pymcu-arm-toolchain] copied {len(TOOLS)} tools + {nlibs} shared "
         f"libs -> {dest_bin.parent}",
     )
 
@@ -231,8 +238,8 @@ def _download_and_stage(dest_bin: Path, dest_lib: Path, console=None) -> None:
     with tempfile.TemporaryDirectory(prefix="pymcu-llvm-") as td:
         tmp = Path(td)
         archive = tmp / "llvm.tar.xz"
-        _log(console, f"[pymcu-rp2040-toolchain] downloading {url}")
-        req = urllib.request.Request(url, headers={"User-Agent": "pymcu-rp2040-toolchain/1.0"})
+        _log(console, f"[pymcu-arm-toolchain] downloading {url}")
+        req = urllib.request.Request(url, headers={"User-Agent": "pymcu-arm-toolchain/1.0"})
         with urllib.request.urlopen(req, context=_ssl_context()) as resp, \
                 open(archive, "wb") as fh:
             while True:
@@ -241,7 +248,7 @@ def _download_and_stage(dest_bin: Path, dest_lib: Path, console=None) -> None:
                     break
                 fh.write(chunk)
         _verify_sha256(archive, sha)
-        _log(console, "[pymcu-rp2040-toolchain] extracting ...")
+        _log(console, "[pymcu-arm-toolchain] extracting ...")
         with tarfile.open(archive, "r:xz") as tf:
             tf.extractall(tmp)  # noqa: S202 -- official LLVM archive
         # The archive expands to a single top-level dir (clang+llvm-...).
