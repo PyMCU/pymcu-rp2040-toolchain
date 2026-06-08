@@ -1,6 +1,6 @@
 name: Toolchain smoke test
 
-# Validates that the published pymcu-rp2040-toolchain stub works correctly
+# Validates that the published pymcu-arm-toolchain stub works correctly
 # on all target platforms: install from PyPI, let get_tool() auto-download the
 # binary wheel from GitHub Releases, run the full pipeline tests.
 #
@@ -9,7 +9,7 @@ name: Toolchain smoke test
 
 on:
   workflow_run:
-    workflows: ["Build pymcu-rp2040-toolchain wheels"]
+    workflows: ["Build pymcu-arm-toolchain wheels"]
     types: [completed]
   push:
     branches: [master, main]
@@ -78,15 +78,15 @@ jobs:
             echo "pin=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install pymcu-rp2040-toolchain from PyPI
+      - name: Install pymcu-arm-toolchain from PyPI
         shell: bash
         run: |
           uv venv .venv
           PIN="${{ steps.version.outputs.pin }}"
           if [ -n "$PIN" ]; then
-            SPEC="pymcu-rp2040-toolchain==$PIN"
+            SPEC="pymcu-arm-toolchain==$PIN"
           else
-            SPEC="pymcu-rp2040-toolchain"
+            SPEC="pymcu-arm-toolchain"
           fi
           echo "Installing: $SPEC"
           for i in 1 2 3; do
@@ -96,7 +96,7 @@ jobs:
           done
           uv run --python .venv python -c "
           from importlib.metadata import version
-          print('Installed version:', version('pymcu-rp2040-toolchain'))
+          print('Installed version:', version('pymcu-arm-toolchain'))
           "
 
       - name: Run smoke tests

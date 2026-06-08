@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # stage-llvm.sh -- slim an LLVM installation down to the five tools the PyMCU
-# RP2040 backend needs, plus the shared libraries they load, into a self-
-# contained <dest>/{bin,lib} tree suitable for RP2040T_TOOLCHAIN_DIR.
+# ARM backend needs, plus the shared libraries they load, into a self-
+# contained <dest>/{bin,lib} tree suitable for ARMT_TOOLCHAIN_DIR.
 #
 # Usage:
 #   scripts/stage-llvm.sh <src-llvm-dir> <dest-dir>

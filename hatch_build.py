@@ -4,12 +4,12 @@
 # wheel (py3-none-<platform>), exactly like pymcu-avr-toolchain.
 #
 # Environment variables:
-#   RP2040T_TOOLCHAIN_DIR  Path to a staged LLVM tree (required). Must contain
-#                          bin/{opt,llc,llvm-mc,ld.lld,llvm-objcopy} and a
-#                          sibling lib/ with the shared libraries they need.
-#                          Produced by scripts/stage-llvm.sh.
-#   WHEEL_PLATFORM_TAG     Override the wheel platform tag, e.g.
-#                          manylinux_2_17_x86_64, win_amd64, macosx_14_0_arm64.
+#   ARMT_TOOLCHAIN_DIR  Path to a staged LLVM tree (required). Must contain
+#                       bin/{opt,llc,llvm-mc,ld.lld,llvm-objcopy} and a
+#                       sibling lib/ with the shared libraries they need.
+#                       Produced by scripts/stage-llvm.sh.
+#   WHEEL_PLATFORM_TAG  Override the wheel platform tag, e.g.
+#                       manylinux_2_17_x86_64, win_amd64, macosx_14_0_arm64.
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from typing import Optional
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-# The five tools the RP2040 backend invokes (see toolchain/rp2040/llvm.py).
+# The five tools the ARM LLVM pipeline invokes (see toolchain/rp2040/llvm.py).
 _REQUIRED_BINS = ["opt", "llc", "llvm-mc", "ld.lld", "llvm-objcopy"]
 # Subdirectories copied into the package (and cleaned up afterwards).
 _STAGED_SUBDIRS = ["bin", "lib"]
@@ -40,7 +40,7 @@ class CustomBuildHook(BuildHookInterface):
             # produce a pure-Python wheel with no binaries. At runtime the
             # package then resolves from the ~/.pymcu/tools cache or system LLVM.
             self.app.display_info(
-                "[hatch-hook] RP2040T_TOOLCHAIN_DIR not set -- building a "
+                "[hatch-hook] ARMT_TOOLCHAIN_DIR not set -- building a "
                 "pure-Python wheel (no bundled LLVM)."
             )
             return
@@ -48,7 +48,7 @@ class CustomBuildHook(BuildHookInterface):
 
         _validate_toolchain(toolchain_dir / "bin")
 
-        pkg_dir = root / "src" / "pymcu_rp2040_toolchain"
+        pkg_dir = root / "src" / "pymcu_arm_toolchain"
 
         # Remove any previously staged binaries (keep the .gitkeep placeholders).
         for sub in _STAGED_SUBDIRS:
@@ -85,7 +85,7 @@ class CustomBuildHook(BuildHookInterface):
 
     def finalize(self, version: str, build_data: dict, artifact_path: str) -> None:
         # Leave the source tree clean: drop everything staged except .gitkeep.
-        pkg_dir = Path(self.root) / "src" / "pymcu_rp2040_toolchain"
+        pkg_dir = Path(self.root) / "src" / "pymcu_arm_toolchain"
         for sub in _STAGED_SUBDIRS:
             d = pkg_dir / sub
             if not d.is_dir():
@@ -101,13 +101,13 @@ class CustomBuildHook(BuildHookInterface):
 
 
 def _find_toolchain_dir() -> "Optional[Path]":
-    """Return the staged LLVM dir, or None if RP2040T_TOOLCHAIN_DIR is unset."""
-    env = os.environ.get("RP2040T_TOOLCHAIN_DIR")
+    """Return the staged LLVM dir, or None if ARMT_TOOLCHAIN_DIR is unset."""
+    env = os.environ.get("ARMT_TOOLCHAIN_DIR")
     if not env:
         return None
     d = Path(env).resolve()
     if not d.is_dir():
-        raise FileNotFoundError(f"RP2040T_TOOLCHAIN_DIR does not exist: {d}")
+        raise FileNotFoundError(f"ARMT_TOOLCHAIN_DIR does not exist: {d}")
     return d
 
 

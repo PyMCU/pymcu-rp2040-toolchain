@@ -1,5 +1,5 @@
 """
-Toolchain supply-chain smoke tests for pymcu-rp2040-toolchain.
+Toolchain supply-chain smoke tests for pymcu-arm-toolchain.
 
 These tests verify that the LLVM tools are correctly installed on the current
 platform and that the full pipeline (LLVM IR → opt → llc → llvm-mc → ld.lld
@@ -23,7 +23,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 try:
-    import pymcu_rp2040_toolchain as _tc
+    import pymcu_arm_toolchain as _tc
     # get_tool() triggers auto-download on first use when only the stub is
     # installed (no bundled binaries) — same pattern as AVR's get_bin_dir().
     _BIN_DIR: Path = _tc.get_tool("opt").parent
@@ -36,7 +36,7 @@ except Exception as exc:
 
 pytestmark = pytest.mark.skipif(
     not _HAS_TOOLCHAIN,
-    reason=f"pymcu-rp2040-toolchain not available: {_TC_ERROR}",
+    reason=f"pymcu-arm-toolchain not available: {_TC_ERROR}",
 )
 
 _IS_WIN = sys.platform == "win32"
@@ -361,7 +361,7 @@ class TestLlvmPipeline:
 
 
 # ---------------------------------------------------------------------------
-# 5. Rp2040LlvmToolchain integration (only when pymcu-rp2040 is installed)
+# 5. Rp2040LlvmToolchain integration (only when pymcu-arm is installed)
 # ---------------------------------------------------------------------------
 
 try:
@@ -372,9 +372,9 @@ except ImportError:
     _HAS_BACKEND = False
 
 
-@pytest.mark.skipif(not _HAS_BACKEND, reason="pymcu-rp2040 not installed")
+@pytest.mark.skipif(not _HAS_BACKEND, reason="pymcu-arm not installed")
 class TestRp2040LlvmToolchain:
-    """Validate Rp2040LlvmToolchain API — skipped if pymcu-rp2040 is absent."""
+    """Validate Rp2040LlvmToolchain API — skipped if pymcu-arm is absent."""
 
     @pytest.fixture
     def toolchain(self):
@@ -385,7 +385,7 @@ class TestRp2040LlvmToolchain:
 
     def test_is_cached(self, toolchain):
         assert toolchain.is_cached(), (
-            "Toolchain reports not cached despite pymcu-rp2040-toolchain being installed"
+            "Toolchain reports not cached despite pymcu-arm-toolchain being installed"
         )
 
     def test_full_pipeline(self, toolchain, tmp_path):
