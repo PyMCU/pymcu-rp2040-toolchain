@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pymcu-arm-toolchain"
-version = "22.1.7"
+version = "22.1.7.post1"
 description = "Vendored LLVM toolchain (opt/llc/llvm-mc/ld.lld/llvm-objcopy) for the PyMCU ARM backend"
 readme = "README.md"
 authors = [
