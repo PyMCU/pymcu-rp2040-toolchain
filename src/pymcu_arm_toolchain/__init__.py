@@ -1,21 +1,21 @@
 # -----------------------------------------------------------------------------
-# pymcu-rp2040-toolchain -- vendored LLVM toolchain for the PyMCU RP2040 backend
+# pymcu-arm-toolchain -- vendored LLVM toolchain for the PyMCU ARM backend
 # Copyright (C) 2026 Ivan Montiel Cardona and the PyMCU Project Authors
 #
 # SPDX-License-Identifier: MIT
 # -----------------------------------------------------------------------------
 
 """
-Vendored LLVM toolchain for the PyMCU RP2040 (ARM Cortex-M0+) backend.
+Vendored LLVM toolchain for the PyMCU ARM (Cortex-M) backend.
 
-This package ships the five LLVM command-line tools the RP2040 toolchain
+This package ships the five LLVM command-line tools the ARM toolchain
 driver needs to turn LLVM IR into a flashable flat image:
 
     opt  llc  llvm-mc  ld.lld  llvm-objcopy
 
 It mirrors the role ``pymcu-avr-toolchain`` plays for the AVR backend: a
 platform-specific wheel whose only job is to make ``get_tool(name)`` return a
-path to a ready-to-run binary, so ``pip install pymcu-compiler[rp2040]`` is
+path to a ready-to-run binary, so ``pip install pymcu-compiler[arm]`` is
 self-contained and reproducible (no system ``brew install llvm`` step).
 
 Resolution order for :func:`get_tool`:
@@ -23,8 +23,8 @@ Resolution order for :func:`get_tool`:
 1. Binaries bundled inside this wheel under ``bin`` / ``lib`` (the normal
    case for a published platform wheel from PyPI -- see ``hatch_build.py`` / CI).
 2. The shared PyMCU tool cache at
-   ``~/.pymcu/tools/<platform>/llvm-rp2040/bin`` (populated by
-   ``python -m pymcu_rp2040_toolchain fetch --cache``; this is also the
+   ``~/.pymcu/tools/<platform>/llvm-arm/bin`` (populated by
+   ``python -m pymcu_arm_toolchain fetch --cache``; this is also the
    directory the Rp2040LlvmToolchain driver probes directly).
 
 If neither is present a :class:`FileNotFoundError` is raised and the driver
@@ -55,7 +55,7 @@ __all__ = [
 # fetch script, the wheel metadata and any diagnostics agree.
 LLVM_VERSION = "22.1.7"
 
-# The exact tools the RP2040 pipeline invokes (see toolchain/rp2040/llvm.py).
+# The exact tools the ARM LLVM pipeline invokes (see toolchain/rp2040/llvm.py).
 TOOLS: List[str] = ["opt", "llc", "llvm-mc", "ld.lld", "llvm-objcopy"]
 
 _PKG_DIR = Path(__file__).resolve().parent
@@ -108,8 +108,8 @@ def cache_root() -> Path:
 
 
 def cache_tool_dir() -> Path:
-    """Per-tool cache directory: ``<cache_root>/llvm-rp2040``."""
-    return cache_root() / "llvm-rp2040"
+    """Per-tool cache directory: ``<cache_root>/llvm-arm``."""
+    return cache_root() / "llvm-arm"
 
 
 def cache_bin_dir() -> Path:
@@ -144,7 +144,7 @@ def get_tool(name: str) -> Path:
     """
     if name not in TOOLS:
         raise FileNotFoundError(
-            f"{name!r} is not provided by pymcu-rp2040-toolchain "
+            f"{name!r} is not provided by pymcu-arm-toolchain "
             f"(known tools: {', '.join(TOOLS)})"
         )
     found = _resolve(name)
@@ -157,7 +157,7 @@ def get_tool(name: str) -> Path:
     if found is None:
         raise FileNotFoundError(
             f"LLVM tool {name!r} not found after download.\n"
-            f"Try manually: python -m pymcu_rp2040_toolchain fetch --cache"
+            f"Try manually: python -m pymcu_arm_toolchain fetch --cache"
         )
     return found
 

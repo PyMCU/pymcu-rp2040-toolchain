@@ -1,30 +1,30 @@
 # -----------------------------------------------------------------------------
-# pymcu-rp2040-toolchain -- CLI
+# pymcu-arm-toolchain -- CLI
 # Copyright (C) 2026 Ivan Montiel Cardona and the PyMCU Project Authors
 #
 # SPDX-License-Identifier: MIT
 # -----------------------------------------------------------------------------
 
 """
-Command line for vendoring / inspecting the RP2040 LLVM toolchain.
+Command line for vendoring / inspecting the ARM LLVM toolchain.
 
-    python -m pymcu_rp2040_toolchain status
-    python -m pymcu_rp2040_toolchain fetch [--cache | --bundle]
-                                           [--from-dir DIR] [--link]
+    python -m pymcu_arm_toolchain status
+    python -m pymcu_arm_toolchain fetch [--cache | --bundle]
+                                        [--from-dir DIR] [--link]
 
 Examples
 --------
 Download the pinned LLVM release into the shared cache (user install)::
 
-    python -m pymcu_rp2040_toolchain fetch --cache
+    python -m pymcu_arm_toolchain fetch --cache
 
 Vendor binaries into the wheel before building a platform wheel (CI)::
 
-    python -m pymcu_rp2040_toolchain fetch --bundle
+    python -m pymcu_arm_toolchain fetch --bundle
 
 Developer convenience -- point at a system LLVM without copying::
 
-    python -m pymcu_rp2040_toolchain fetch --cache \
+    python -m pymcu_arm_toolchain fetch --cache \
         --from-dir /opt/homebrew/opt/llvm --link
 """
 
@@ -45,7 +45,7 @@ from ._fetch import fetch
 
 
 def _cmd_status() -> int:
-    print(f"pymcu-rp2040-toolchain (LLVM {LLVM_VERSION}, platform {platform_key()})")
+    print(f"pymcu-arm-toolchain (LLVM {LLVM_VERSION}, platform {platform_key()})")
     ok = is_installed()
     for t in TOOLS:
         try:
@@ -54,19 +54,19 @@ def _cmd_status() -> int:
             print(f"  [--] {t:14s} not vendored")
     if not ok:
         print(f"\nMissing: {', '.join(missing_tools())}")
-        print("Run: python -m pymcu_rp2040_toolchain fetch --cache")
+        print("Run: python -m pymcu_arm_toolchain fetch --cache")
     return 0 if ok else 1
 
 
 def _cmd_fetch(args: argparse.Namespace) -> int:
     target = "bundle" if args.bundle else "cache"
     dest = fetch(target=target, from_dir=args.from_dir, link=args.link)
-    print(f"pymcu-rp2040-toolchain: staged into {dest}")
+    print(f"pymcu-arm-toolchain: staged into {dest}")
     return 0 if is_installed() else 1
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="pymcu_rp2040_toolchain")
+    parser = argparse.ArgumentParser(prog="pymcu_arm_toolchain")
     # No subcommand defaults to `status` (the package's info entry point).
     sub = parser.add_subparsers(dest="cmd", required=False)
 
